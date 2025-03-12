@@ -78,6 +78,7 @@ def process_data():
     words = {}
     os.system('cls')
     print("Tokenizing statements...")
+    print("This may take a minute...")
     unprocessed_data['statement'] = unprocessed_data['statement'].apply(lambda x: list(clean_text(x)))
 
     # keep track of words used in statements
