@@ -20,19 +20,17 @@ def clean_text(text):
     Parameters: text (str)
     Returns: cleaned tokens
     """
-    cleaned_tokens = []
     cleaned_text = re.sub(r"[^\w\s']+", " ", text) # https://stackoverflow.com/questions/31191986/br-tag-screwing-up-my-data-from-scraping-using-beautiful-soup-and-python
     tokens = word_tokenize(cleaned_text) # tokenizes text
     lemmatizer = WordNetLemmatizer()
     for t in tokens:
-        if t not in set(stopwords.words('english')): # prevents stopwords from being tokenized
-            cleaned_tokens.append(lemmatizer.lemmatize(t.lower()))
-            #cleaned_tokens.append(ps.stem(t)) # can uncomment to use stemming
-    return cleaned_tokens
+        if t not in set(stopwords.words('english')):
+            yield lemmatizer.lemmatize(t.lower())
+            # yield (ps.stem(t) # can uncomment to use stemming
 
 def load_data(data_path):
     """
-    Function: Loads all valid data entried and saves it to a pkl file
+    Function: Loads all valid data entried and saves it to a pkl file found it the data folder; only to be used once
     Parameters: None
     Returns: words
     """
@@ -77,20 +75,26 @@ def process_data():
 
     # Process data
 
-    words = []
+    words = {}
     os.system('cls')
     print("Tokenizing statements...")
-    unprocessed_data['statement'] = unprocessed_data['statement'].apply(clean_text)
+    unprocessed_data['statement'] = unprocessed_data['statement'].apply(lambda x: list(clean_text(x)))
 
     # keep track of words used in statements
     os.system('cls')
     print("Generating word list...")
+    count = 0
     for statement in unprocessed_data['statement']:
         for word in statement:
             if word not in words:
-                words.append(word)
+                words[count] = word
+                count += 1
     
-    print(len(words))
+    os.system('cls')
+    # print first few words in words
+    print("Words used in statements:")
+    for i in range(5):
+        print(words[i])
     print(unprocessed_data['statement'].head())
     input("- Press Enter")
 
