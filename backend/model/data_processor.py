@@ -1,10 +1,4 @@
-#data_preprocessor.py
-"""
-Function: Processes data from Politifact dataset, and saves it to a pkl file
-Parameters: None
-Returns: None
-"""
-
+#data_processor.py
 import pandas as pd
 import os
 import csv
@@ -12,7 +6,7 @@ from nltk.corpus import stopwords
 import regex as re
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix # Data type for storing which words are in a statement
 
 def clean_text(text):
     """
@@ -92,12 +86,11 @@ def process_data():
                 count += 1
     
     os.system('cls')
-    # print first few words in words
-    print("Words used in statements:")
-    for i in range(5):
-        print(words[i])
     print(unprocessed_data['statement'].head())
-    input("- Press Enter")
+    print("Done")
+    
+
+
 
 
 current_dir = os.path.dirname(__file__)
