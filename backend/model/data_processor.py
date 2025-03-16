@@ -29,13 +29,14 @@ def load_data(data_path):
     Returns: words
     """
 
+    os.system('cls')
+    print("Loading data...")
     # Load data from tsv file
     chosen_columns = ["id", "label", "statement", "subjects", "speaker", "speaker_job_title", "state_info", "party_affiliation","barely_true_counts", "false_counts", "half_true_counts", "mostly_true_counts", "pants_on_fire_counts", "context"]
     loaded_data = pd.DataFrame(columns=chosen_columns)
     with open(data_path, encoding="utf8") as fd:
         rd = csv.reader(fd, delimiter="\t", quotechar='"')
         possible_ratings = ["true", "mostly-true", "half-true", "barely-true", "false", "pants-fire"]
-        words = []
         for row in rd:
 
             # Exclude rows with incomplete data
@@ -51,49 +52,67 @@ def load_data(data_path):
                     #adds row to pandas table
                     loaded_data = pd.concat([loaded_data, pd.DataFrame([row], columns=chosen_columns)], ignore_index=True)
 
-    loaded_data.to_pickle(os.path.join(current_dir,'../data/data.pkl'))
+    loaded_data.to_pickle(os.path.join(current_dir,'../data/semi_processed_data.pkl'))
     input("- Data Loaded\n- Press Enter")
 
-def process_data():
+def tokenize_data(data_path):
     """
-    Function: Loads data from pkl file, processes it and saves it to another pkl file
-    Parameters: None
-    Returns: None
-    """
-
-    features = pd.DataFrame()
-
+    Function: Loads data from pkl file and tokenizes statements, saving it as a seperate pkl file
+    Parameters: data_path - the path to the pkl file to be loaded
+    Returns: None """
     # Load data from pkl file
+    os.system('cls')
     print("Loading pkl file...")
-    unprocessed_data = pd.read_pickle(os.path.join(current_dir,'../data/data.pkl'))
+    unprocessed_data = pd.read_pickle(os.path.join(current_dir, data_path))
 
     # Process data
 
-    words = {}
     os.system('cls')
     print("Tokenizing statements...")
-    print("This may take a minute...")
+    print("This will take a minute or two...")
     unprocessed_data['statement'] = unprocessed_data['statement'].apply(lambda x: list(clean_text(x)))
 
-    # keep track of words used in statements
+    unprocessed_data.to_pickle(os.path.join(current_dir,'../data/tokenized_statements.pkl'))
+    input("- Statements Tokenized\n- Press Enter")
+
+def process_statements(data_path):
+    """
+    Function: Loads data from pkl file, processes it and saves it to another pkl file
+    Parameters: data_path - the path to the pkl file to be loaded
+    Returns: None
+    """
+
+    os.system('cls')
+    print("Reading tokenized statements...")
+
+    tokenized_statements = pd.read_pickle(os.path.join(current_dir, data_path))
+    
+    # keep track of words used in corpus
     os.system('cls')
     print("Generating word list...")
-    count = 0
-    for statement in unprocessed_data['statement']:
+    print("Just a moment...")
+
+    words_in_corpus = {}
+    statements_list = []
+    unique_in_corpus = 0
+    for statement in tokenized_statements['statement']:
+        statements_list.append([0 for _ in range(len(words_in_corpus))])
         for word in statement:
-            if word not in words:
-                words[count] = word
-                count += 1
+            if word not in words_in_corpus:
+                words_in_corpus[word] = unique_in_corpus
+                unique_in_corpus += 1
+                for old_statements in statements_list[:-1]:
+                    old_statements.append(0)
+                statements_list[len(statements_list)-1].append(1)
+            else:
+                statements_list[len(statements_list)-1][words_in_corpus[word]] += 1
     
-    os.system('cls')
-    print(unprocessed_data['statement'].head())
-    print("Done")
-    
-
-
-
+    statements_matrix = csr_matrix(statements_list) # (statement, word)   num_of_appearances
+    statements_matrix.to_pickle(os.path.join(current_dir, '../data/processed_statements.pkl'))
+    input("- Statements Processed\n- Press Enter")
 
 current_dir = os.path.dirname(__file__)
 data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
 #load_data(data_path)
-process_data()
+#tokenize_data('../data/semi_processed_data.pkl')
+process_statements('../data/tokenized_statements.pkl')
