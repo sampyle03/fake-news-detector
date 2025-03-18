@@ -6,7 +6,10 @@ from nltk.corpus import stopwords
 import regex as re
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+from nltk.util import ngrams as nltk_ngrams
+from nltk import FreqDist
 from scipy.sparse import csr_matrix # Data type for storing which words are in a statement
+import pickle as pkl
 
 def clean_text(text):
     """
@@ -21,6 +24,36 @@ def clean_text(text):
         if t not in set(stopwords.words('english')):
             yield lemmatizer.lemmatize(t.lower())
             # yield (ps.stem(t) # can uncomment to use stemming
+
+def detect_ngrams(tokens): # detects ngrams in tokens and returns which those most commonly found
+    # ngrams = bigrams + trigrams + quadgrams
+    ngrams = list(nltk_ngrams(tokens, 2)) + list(nltk_ngrams(tokens, 3)) + list(nltk_ngrams(tokens, 4))
+    ngram_count = FreqDist(ngrams)
+    for token, count in ngram_count.items():
+        if len(token) == 2 and count > 17: # bigram considered "commonly found" if it appears more than 14 times
+            yield token
+        elif len(token) == 3 and count > 7:
+            yield token
+        elif len(token) == 4 and count > 5:
+            yield token
+
+def tokenize_ngrams(common_ngrams, cleaned_tokens):
+    for i in range(len(cleaned_tokens)-1):
+        bigram = (cleaned_tokens[i], cleaned_tokens[i+1])
+        try:
+            trigram = (cleaned_tokens[i], cleaned_tokens[i+1], cleaned_tokens[i+2])
+            try:
+                quadgram = (cleaned_tokens[i], cleaned_tokens[i+1], cleaned_tokens[i+2], cleaned_tokens[i+3])
+                if quadgram in common_ngrams: # checks if four words from tokens being checked are one of commonQuadgrams
+                    yield quadgram[0] + " " + quadgram[1] + " " + quadgram[2] + " " + quadgram[3]
+            except IndexError:
+                pass
+            if trigram in common_ngrams: # checks if three words from tokens being checked are one of commonTrigrams
+                yield trigram[0] + " " + trigram[1] + " " + trigram[2]
+        except IndexError:
+            pass
+        if bigram in common_ngrams: # checks if two words from tokens being checked are one of commonBigrams
+            yield bigram[0] + " " + bigram[1]
 
 def load_data(data_path):
     """
@@ -52,7 +85,7 @@ def load_data(data_path):
                     #adds row to pandas table
                     loaded_data = pd.concat([loaded_data, pd.DataFrame([row], columns=chosen_columns)], ignore_index=True)
 
-    loaded_data.to_pickle(os.path.join(current_dir,'../data/semi_processed_data.pkl'))
+    loaded_data.to_pickle(os.path.join(current_dir,'../data/pickle/semi_processed_data.pkl'))
     input("- Data Loaded\n- Press Enter")
 
 def tokenize_data(data_path):
@@ -72,8 +105,34 @@ def tokenize_data(data_path):
     print("This will take a minute or two...")
     unprocessed_data['statement'] = unprocessed_data['statement'].apply(lambda x: list(clean_text(x)))
 
-    unprocessed_data.to_pickle(os.path.join(current_dir,'../data/tokenized_statements.pkl'))
+    # Detect ngrams
+    common_ngrams = list(detect_ngrams(unprocessed_data['statement'].sum()))
+    # Add tokenized ngrams to data
+    unprocessed_data['ngrams'] = unprocessed_data['statement'].apply(lambda x: list(tokenize_ngrams(common_ngrams, x)))
+
+    unprocessed_data.to_pickle(os.path.join(current_dir,'../data/pickle/tokenized_statements.pkl'))
     input("- Statements Tokenized\n- Press Enter")
+    return common_ngrams
+
+def concatenate_statements_ngrams(data_path):
+    """
+    Function: Loads data from a pkl file and concatenates statements with ngrams
+    Parameters: data_path - the path to the pkl file to be loaded
+    Returns: None
+    """
+
+    os.system('cls')
+    print("Loading tokenized statements...")
+
+    tokenized_statements = pd.read_pickle(os.path.join(current_dir, data_path))
+
+
+    # Concatenate statements with ngrams
+    tokenized_statements['statement'] = tokenized_statements['statement'] + tokenized_statements['ngrams']
+    tokenized_statements.drop(columns=['ngrams'], inplace=True)
+
+    tokenized_statements.to_pickle(os.path.join(current_dir, '../data/pickle/statements_ngrams.pkl'))
+    input("- Statements Concatenated\n- Press Enter")
 
 def process_statements(data_path):
     """
@@ -108,11 +167,27 @@ def process_statements(data_path):
                 statements_list[len(statements_list)-1][words_in_corpus[word]] += 1
     
     statements_matrix = csr_matrix(statements_list) # (statement, word)   num_of_appearances
-    statements_matrix.to_pickle(os.path.join(current_dir, '../data/processed_statements.pkl'))
-    input("- Statements Processed\n- Press Enter")
+    print(statements_matrix.tocoo().row[0])
+    print(statements_matrix.tocoo().col[0])
+    print(statements_matrix.tocoo().data[0])
+    print(statements_matrix)
+    #statements_matrix.to_pickle(os.path.join(current_dir, '../data/pickle/processed_statements.pkl'))
+    #input("- Statements Processed\n- Press Enter")
 
+
+
+
+# Main
 current_dir = os.path.dirname(__file__)
 data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
+
+
 #load_data(data_path)
-#tokenize_data('../data/semi_processed_data.pkl')
-process_statements('../data/tokenized_statements.pkl')
+
+#common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
+"""with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
+    pkl.dump(common_ngrams, file)"""
+
+#concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
+
+process_statements('../data/pickle/statements_ngrams.pkl')
