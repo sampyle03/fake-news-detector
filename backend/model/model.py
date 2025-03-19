@@ -89,15 +89,19 @@ def classify_statement(data_path, statement):
             most_similar.insert(insert_at, (i, similarities[i]))
             most_similar.pop()
     
-    knn_truth_ratings = {}
+    knn_truth_ratings = {'true': 0, 'mostly-true': 0, 'half-true': 0, 'barely-true': 0, 'false': 0, 'pants-fire': 0}
     for item in most_similar:
-        if truth_ratings[item[0]] not in knn_truth_ratings:
-            knn_truth_ratings[truth_ratings[item[0]]] = 1
-        else:
-            knn_truth_ratings[truth_ratings[item[0]]] += 1
-    print("Truth Ratings")
-    print(knn_truth_ratings)
-    
+        knn_truth_ratings[truth_ratings[item[0]]] += 1
+
+    # Majority voting
+    max_votes = 0
+    classification = None
+    for key, value in knn_truth_ratings.items():
+        if value > max_votes:
+            max_votes = value
+            classification = key
+    print(f"Statement is classified as: {classification}")
+
 # Main
 current_dir = os.path.dirname(__file__)
 while True:
