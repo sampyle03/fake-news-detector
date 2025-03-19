@@ -1,15 +1,18 @@
 #data_processor.py
 import pandas as pd
 import os
+import sys
 import csv
 from nltk.corpus import stopwords
 import regex as re
 from nltk.stem import WordNetLemmatizer
+from nltk.stem import PorterStemmer as ps
 from nltk.tokenize import word_tokenize
 from nltk.util import ngrams as nltk_ngrams
 from nltk import FreqDist
 from scipy.sparse import csr_matrix # Data type for storing which words are in a statement
 import pickle as pkl
+from math import log10 as math_log
 
 def clean_text(text):
     """
@@ -19,11 +22,13 @@ def clean_text(text):
     """
     cleaned_text = re.sub(r"[^\w\s']+", " ", text) # https://stackoverflow.com/questions/31191986/br-tag-screwing-up-my-data-from-scraping-using-beautiful-soup-and-python
     tokens = word_tokenize(cleaned_text) # tokenizes text
+    if tokens[0].lower() == "says":
+        tokens = tokens[1:]
     lemmatizer = WordNetLemmatizer()
     for t in tokens:
         if t not in set(stopwords.words('english')):
             yield lemmatizer.lemmatize(t.lower())
-            # yield (ps.stem(t) # can uncomment to use stemming
+            # yield (ps.stem(t.lower())) # can uncomment to use stemming
 
 def detect_ngrams(tokens): # detects ngrams in tokens and returns which those most commonly found
     # ngrams = bigrams + trigrams + quadgrams
@@ -165,14 +170,78 @@ def process_statements(data_path):
                 statements_list[len(statements_list)-1].append(1)
             else:
                 statements_list[len(statements_list)-1][words_in_corpus[word]] += 1
+
+    with open(os.path.join(current_dir, '../data/pickle/words_in_corpus.pkl'), 'wb') as file:
+        pkl.dump(words_in_corpus, file)
     
     statements_matrix = csr_matrix(statements_list) # (statement, word)   num_of_appearances
-    print(statements_matrix.tocoo().row[0])
-    print(statements_matrix.tocoo().col[0])
-    print(statements_matrix.tocoo().data[0])
-    print(statements_matrix)
-    #statements_matrix.to_pickle(os.path.join(current_dir, '../data/pickle/processed_statements.pkl'))
-    #input("- Statements Processed\n- Press Enter")
+
+    # Calculate the inverse document frequency of each word
+    os.system('cls')
+    print("Calculating document frequency of statements...")
+
+    coo_matrix = statements_matrix.tocoo()
+    num_of_docs = statements_matrix.shape[0]
+    docs_containing_terms = {}
+    statement_no = 0
+    words_in_statement = set()
+    num_words_in_statements = {}
+    count = 0
+    for i in range(len(coo_matrix.col)):
+        if i != statement_no:
+            num_words_in_statements[statement_no] = count
+            statement_no += 1
+            words_in_statement = set()
+            count = 0
+        if coo_matrix.col[i] not in words_in_statement:
+            words_in_statement.add(coo_matrix.col[i])
+            if coo_matrix.col[i] in docs_containing_terms:
+                docs_containing_terms[coo_matrix.col[i]] += 1
+            else:
+                docs_containing_terms[coo_matrix.col[i]] = 1
+        count += 1
+
+    
+    term_idfs = {}
+    for word_no, appearances in docs_containing_terms.items():
+        term_idfs[word_no] = math_log(num_of_docs/appearances)
+    
+    with open(os.path.join(current_dir, '../data/pickle/term_idfs.pkl'), 'wb') as file:
+        pkl.dump(term_idfs, file)
+    
+    # Calculate the term frequency-inverse document frequency vectors of each statement
+    os.system('cls')
+    print("Calculating tf-idf vectors of each statement...")
+    print("Just a moment...")
+
+    tf_idf_statements = []
+    statement_tf_idf = [0 for _ in range(len(words_in_corpus))]
+    current_doc = None
+
+    for i in range(coo_matrix.nnz):
+        doc_no = coo_matrix.row[i]
+        term_no = coo_matrix.col[i]
+        data = coo_matrix.data[i]
+        
+        if doc_no != current_doc:
+            if current_doc is not None:
+                tf_idf_statements.append(statement_tf_idf)
+            current_doc = doc_no
+            statement_tf_idf = [0 for _ in range(len(words_in_corpus))]
+        
+        word_tf = data / num_words_in_statements[doc_no]
+        statement_tf_idf[term_no] = word_tf * term_idfs[term_no]
+    
+    tf_idf_statements.append(statement_tf_idf)
+    tf_idf_statements = csr_matrix(tf_idf_statements)
+
+    # Save the tf-idf vectors to a pkl file
+    os.system('cls')
+    print("Saving tf-idf vectors...")
+    print("Just a moment...")
+    with open(os.path.join(current_dir, '../data/pickle/tf_idf_statements.pkl'), 'wb') as file:
+        pkl.dump(tf_idf_statements, file)
+    input("- tf-idf Vectors Saved\n- Press Enter")
 
 
 
@@ -184,10 +253,10 @@ data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
 
 #load_data(data_path)
 
-#common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
-"""with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
-    pkl.dump(common_ngrams, file)"""
+common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
+with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
+    pkl.dump(common_ngrams, file)
 
-#concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
+concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
 
 process_statements('../data/pickle/statements_ngrams.pkl')
