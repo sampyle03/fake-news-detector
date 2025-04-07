@@ -13,6 +13,7 @@ from nltk import FreqDist
 from scipy.sparse import csr_matrix # Data type for storing which words are in a statement
 import pickle as pkl
 from math import log10 as math_log
+from nltk import pos_tag as nltk_pos_tag
 
 def clean_text(text):
     """
@@ -29,6 +30,18 @@ def clean_text(text):
         if t not in set(stopwords.words('english')):
             yield lemmatizer.lemmatize(t.lower())
             # yield (ps.stem(t.lower())) # can uncomment to use stemming
+    
+def postag_text(cleaned_statement):
+    """
+    Function: Returns the parts of speech tags of the given statement
+    Parameters: cleaned_statement (str)
+    Returns: postagged statement
+    """
+    postagged_statement = nltk_pos_tag(cleaned_statement)
+    for t in postagged_statement:
+        if t[0] not in set(stopwords.words('english')):
+            yield t[1]
+
 
 def detect_ngrams(tokens): # detects ngrams in tokens and returns which those most commonly found
     # ngrams = bigrams + trigrams + quadgrams
@@ -70,7 +83,8 @@ def load_data(data_path):
     os.system('cls')
     print("Loading data...")
     # Load data from tsv file
-    chosen_columns = ["id", "label", "statement", "subjects", "speaker", "speaker_job_title", "state_info", "party_affiliation","barely_true_counts", "false_counts", "half_true_counts", "mostly_true_counts", "pants_on_fire_counts", "context"]
+    #chosen_columns = ["id", "label", "statement", "subjects", "speaker", "speaker_job_title", "state_info", "party_affiliation","barely_true_counts", "false_counts", "half_true_counts", "mostly_true_counts", "pants_on_fire_counts", "context"] - this considers counts of speaker's ratings
+    chosen_columns = ["id", "label", "statement", "subjects", "speaker", "speaker_job_title", "state_info", "party_affiliation", "context"]
     loaded_data = pd.DataFrame(columns=chosen_columns)
     with open(data_path, encoding="utf8") as fd:
         rd = csv.reader(fd, delimiter="\t", quotechar='"')
@@ -84,14 +98,21 @@ def load_data(data_path):
                 if ((isinstance(row[0], str)) and (isinstance(row[1], str)) and (row[1] in possible_ratings)
                 and isinstance(row[2], str) and isinstance(row[3], str) and isinstance(row[4], str)
                 and isinstance(row[5], str) and isinstance(row[6], str) and isinstance(row[7], str)
-                and row[8].isnumeric() and row[9].isnumeric() and row[10].isnumeric()
-                and row[11].isnumeric() and row[12].isnumeric() and isinstance(row[13], str)):
+                and isinstance(row[13], str)):
                     
                     #adds row to pandas table
-                    loaded_data = pd.concat([loaded_data, pd.DataFrame([row], columns=chosen_columns)], ignore_index=True)
+                    loaded_data = pd.concat([loaded_data, pd.DataFrame([[row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[13]]], columns=chosen_columns)], ignore_index=True)
+                    loaded_data.loc[loaded_data['label'] == 'true', 'ordinal_label'] = 5
+                    loaded_data.loc[loaded_data['label'] == 'mostly-true', 'ordinal_label'] = 4
+                    loaded_data.loc[loaded_data['label'] == 'half-true', 'ordinal_label'] = 3
+                    loaded_data.loc[loaded_data['label'] == 'barely-true', 'ordinal_label'] = 2
+                    loaded_data.loc[loaded_data['label'] == 'false', 'ordinal_label'] = 1
+                    loaded_data.loc[loaded_data['label'] == 'pants-fire', 'ordinal_label'] = 0
+
 
     loaded_data.to_pickle(os.path.join(current_dir,'../data/pickle/semi_processed_data.pkl'))
     input("- Data Loaded\n- Press Enter")
+
 
 def tokenize_data(data_path):
     """
@@ -109,6 +130,7 @@ def tokenize_data(data_path):
     print("Tokenizing statements...")
     print("This will take a minute or two...")
     unprocessed_data['statement'] = unprocessed_data['statement'].apply(lambda x: list(clean_text(x)))
+    unprocessed_data['postag'] = unprocessed_data['statement'].apply(lambda x: list(postag_text(x)))
 
     # Detect ngrams
     common_ngrams = list(detect_ngrams(unprocessed_data['statement'].sum()))
@@ -158,23 +180,39 @@ def process_statements(data_path):
 
     words_in_corpus = {}
     statements_list = []
-    unique_in_corpus = 0
     for statement in tokenized_statements['statement']:
         statements_list.append([0 for _ in range(len(words_in_corpus))])
         for word in statement:
             if word not in words_in_corpus:
-                words_in_corpus[word] = unique_in_corpus
-                unique_in_corpus += 1
+                words_in_corpus[word] = len(words_in_corpus)
                 for old_statements in statements_list[:-1]:
                     old_statements.append(0)
                 statements_list[len(statements_list)-1].append(1)
             else:
                 statements_list[len(statements_list)-1][words_in_corpus[word]] += 1
 
+    postags_in_corpus = {}
+    postags_list = []
+    for statement in tokenized_statements['postag']:
+        postags_list.append([0 for _ in range(len(postags_in_corpus))])
+        for postag in statement:
+            if postag not in postags_in_corpus:
+                postags_in_corpus[postag] = len(postags_in_corpus)
+                for old_statements in postags_list[:-1]:
+                    old_statements.append(0)
+                postags_list[len(postags_list)-1].append(1)
+            else:
+                postags_list[len(postags_list)-1][postags_in_corpus[postag]] += 1
+
     with open(os.path.join(current_dir, '../data/pickle/words_in_corpus.pkl'), 'wb') as file:
         pkl.dump(words_in_corpus, file)
     
     statements_matrix = csr_matrix(statements_list) # (statement, word)   num_of_appearances
+    postags_matrix = csr_matrix(postags_list) # (statement, postag)   num_of_appearances
+
+    with open(os.path.join(current_dir, '../data/pickle/postags_in_corpus.pkl'), 'wb') as file:
+        pkl.dump(postags_in_corpus, file)
+
 
     # Calculate the inverse document frequency of each word
     os.system('cls')
@@ -208,6 +246,7 @@ def process_statements(data_path):
     
     with open(os.path.join(current_dir, '../data/pickle/term_idfs.pkl'), 'wb') as file:
         pkl.dump(term_idfs, file)
+    
     
     # Calculate the term frequency-inverse document frequency vectors of each statement
     os.system('cls')
@@ -253,10 +292,10 @@ data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
 
 #load_data(data_path)
 
-common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
-with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
-    pkl.dump(common_ngrams, file)
+#common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
+#with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
+    #pkl.dump(common_ngrams, file)
 
-concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
+#concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
 
 process_statements('../data/pickle/statements_ngrams.pkl')
