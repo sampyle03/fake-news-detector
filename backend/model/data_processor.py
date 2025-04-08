@@ -14,6 +14,10 @@ from scipy.sparse import csr_matrix # Data type for storing which words are in a
 import pickle as pkl
 from math import log10 as math_log
 from nltk import pos_tag as nltk_pos_tag
+from nltk import ne_chunk as nltk_ne_chunk
+from nltk.tree import Tree as nltk_tree
+# nltk.download('maxent_ne_chunker')
+# nltk.download('words')
 
 def clean_text(text):
     """
@@ -21,26 +25,31 @@ def clean_text(text):
     Parameters: text (str)
     Returns: cleaned tokens
     """
-    cleaned_text = re.sub(r"[^\w\s']+", " ", text) # https://stackoverflow.com/questions/31191986/br-tag-screwing-up-my-data-from-scraping-using-beautiful-soup-and-python
-    tokens = word_tokenize(cleaned_text) # tokenizes text
-    if tokens[0].lower() == "says":
+
+    tokens = word_tokenize(text) # Tokenizes text
+    ner_chunks = nltk_ne_chunk(nltk_pos_tag(tokens)) # Gets the named entities of the tokens
+    tokens = nltk_pos_tag(tokens) # Gets the parts of speech tags of the tokens
+
+    tags = []
+    for chunk in ner_chunks:
+        if isinstance(chunk, nltk_tree): # Check if chunk is a named entity
+            entity_type = chunk.label()
+            entity_words = [word for (word, pos) in chunk]
+            entity_phrase = ' '.join(entity_words)  # Merge into "Annies List"
+            tags.append((entity_phrase, entity_type)) # Set word's tag to its entity type
+        else: 
+            word, pos = chunk
+            tags.append((word, pos)) # Set word's tag to its POS tag
+
+    if tokens and tokens[0][0].lower() == "says":
         tokens = tokens[1:]
-    lemmatizer = WordNetLemmatizer()
-    for t in tokens:
-        if t not in set(stopwords.words('english')):
-            yield lemmatizer.lemmatize(t.lower())
-            # yield (ps.stem(t.lower())) # can uncomment to use stemming
-    
-def postag_text(cleaned_statement):
-    """
-    Function: Returns the parts of speech tags of the given statement
-    Parameters: cleaned_statement (str)
-    Returns: postagged statement
-    """
-    postagged_statement = nltk_pos_tag(cleaned_statement)
-    for t in postagged_statement:
-        if t[0] not in set(stopwords.words('english')):
-            yield t[1]
+        tags = tags[1:]
+
+    for t in tags:
+        #if t[0] not in stopwords and is not a fully built up of punctuation marks
+        if t[0] not in set(stopwords.words('english')) and re.match(r'^[^\w\s]+$', t[0]) is None:
+            yield (t[0].lower(), t[1])
+
 
 
 def detect_ngrams(tokens): # detects ngrams in tokens and returns which those most commonly found
@@ -48,11 +57,11 @@ def detect_ngrams(tokens): # detects ngrams in tokens and returns which those mo
     ngrams = list(nltk_ngrams(tokens, 2)) + list(nltk_ngrams(tokens, 3)) + list(nltk_ngrams(tokens, 4))
     ngram_count = FreqDist(ngrams)
     for token, count in ngram_count.items():
-        if len(token) == 2 and count > 17: # bigram considered "commonly found" if it appears more than 14 times
+        if len(token) == 2 and count > 14: # bigram considered "commonly found" if it appears more than 14 times
             yield token
-        elif len(token) == 3 and count > 7:
+        elif len(token) == 3 and count > 6:
             yield token
-        elif len(token) == 4 and count > 5:
+        elif len(token) == 4 and count > 4:
             yield token
 
 def tokenize_ngrams(common_ngrams, cleaned_tokens):
@@ -63,15 +72,30 @@ def tokenize_ngrams(common_ngrams, cleaned_tokens):
             try:
                 quadgram = (cleaned_tokens[i], cleaned_tokens[i+1], cleaned_tokens[i+2], cleaned_tokens[i+3])
                 if quadgram in common_ngrams: # checks if four words from tokens being checked are one of commonQuadgrams
-                    yield quadgram[0] + " " + quadgram[1] + " " + quadgram[2] + " " + quadgram[3]
+                    yield ((quadgram[0][0] + " " + quadgram[1][0] + " " + quadgram[2][0] + " " + quadgram[3][0]), (quadgram[0][1], quadgram[1][1], quadgram[2][1], quadgram[3][1]))
             except IndexError:
                 pass
             if trigram in common_ngrams: # checks if three words from tokens being checked are one of commonTrigrams
-                yield trigram[0] + " " + trigram[1] + " " + trigram[2]
+                yield ((trigram[0][0] + " " + trigram[1][0] + " " + trigram[2][0]), (trigram[0][1], trigram[1][1], trigram[2][1]))
         except IndexError:
             pass
         if bigram in common_ngrams: # checks if two words from tokens being checked are one of commonBigrams
-            yield bigram[0] + " " + bigram[1]
+            yield ((bigram[0][0] + " " + bigram[1][0]), (bigram[0][1], bigram[1][1]))
+
+def remove_ngram_tokens(tokens, ngram_tokens):
+    """
+    Function: Removes the singular tokens found in ngrams from the list of tokens
+    Parameters: tokens - the list of tokens to be cleaned
+    Returns: cleaned tokens
+    """
+    for ngram in ngram_tokens:
+        ngram_to_check = ngram[0].split(" ")
+        for i in range(len(ngram_to_check)-2):
+            for j in range(len(tokens)-2):
+                if tokens[j][0] == ngram_to_check[i][0] and tokens[j][1] == ngram_to_check[i][1]:
+                    tokens.remove(tokens[j])
+                    break
+    return tokens
 
 def load_data(data_path):
     """
@@ -130,12 +154,13 @@ def tokenize_data(data_path):
     print("Tokenizing statements...")
     print("This will take a minute or two...")
     unprocessed_data['statement'] = unprocessed_data['statement'].apply(lambda x: list(clean_text(x)))
-    unprocessed_data['postag'] = unprocessed_data['statement'].apply(lambda x: list(postag_text(x)))
 
     # Detect ngrams
     common_ngrams = list(detect_ngrams(unprocessed_data['statement'].sum()))
     # Add tokenized ngrams to data
     unprocessed_data['ngrams'] = unprocessed_data['statement'].apply(lambda x: list(tokenize_ngrams(common_ngrams, x)))
+    # do remove_ngram_tokens
+    unprocessed_data['statement'] = unprocessed_data.apply(lambda x: remove_ngram_tokens(x['statement'], x['ngrams']), axis=1)
 
     unprocessed_data.to_pickle(os.path.join(current_dir,'../data/pickle/tokenized_statements.pkl'))
     input("- Statements Tokenized\n- Press Enter")
@@ -181,6 +206,8 @@ def process_statements(data_path):
     words_in_corpus = {}
     statements_list = []
     for statement in tokenized_statements['statement']:
+        print(statement)
+        input("Press Enter to continue")
         statements_list.append([0 for _ in range(len(words_in_corpus))])
         for word in statement:
             if word not in words_in_corpus:
@@ -191,27 +218,12 @@ def process_statements(data_path):
             else:
                 statements_list[len(statements_list)-1][words_in_corpus[word]] += 1
 
-    postags_in_corpus = {}
-    postags_list = []
-    for statement in tokenized_statements['postag']:
-        postags_list.append([0 for _ in range(len(postags_in_corpus))])
-        for postag in statement:
-            if postag not in postags_in_corpus:
-                postags_in_corpus[postag] = len(postags_in_corpus)
-                for old_statements in postags_list[:-1]:
-                    old_statements.append(0)
-                postags_list[len(postags_list)-1].append(1)
-            else:
-                postags_list[len(postags_list)-1][postags_in_corpus[postag]] += 1
 
     with open(os.path.join(current_dir, '../data/pickle/words_in_corpus.pkl'), 'wb') as file:
         pkl.dump(words_in_corpus, file)
     
     statements_matrix = csr_matrix(statements_list) # (statement, word)   num_of_appearances
-    postags_matrix = csr_matrix(postags_list) # (statement, postag)   num_of_appearances
 
-    with open(os.path.join(current_dir, '../data/pickle/postags_in_corpus.pkl'), 'wb') as file:
-        pkl.dump(postags_in_corpus, file)
 
 
     # Calculate the inverse document frequency of each word
@@ -272,7 +284,7 @@ def process_statements(data_path):
         statement_tf_idf[term_no] = word_tf * term_idfs[term_no]
     
     tf_idf_statements.append(statement_tf_idf)
-    tf_idf_statements = csr_matrix(tf_idf_statements)
+    tf_idf_statements = csr_matrix(tf_idf_statements) # (statement, word)   tf-idf value
 
     # Save the tf-idf vectors to a pkl file
     os.system('cls')
@@ -292,10 +304,10 @@ data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
 
 #load_data(data_path)
 
-#common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
-#with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
-    #pkl.dump(common_ngrams, file)
+common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
+with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
+    pkl.dump(common_ngrams, file)
 
-#concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
+concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
 
 process_statements('../data/pickle/statements_ngrams.pkl')
