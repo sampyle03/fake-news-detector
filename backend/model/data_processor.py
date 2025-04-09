@@ -44,11 +44,19 @@ def clean_text(text):
     if tokens and tokens[0][0].lower() == "says":
         tokens = tokens[1:]
         tags = tags[1:]
-
+    
+    excluded_words = {'', ' '} # Exclude empty strings and spaces
     for t in tags:
+        # remove punctation marks from start and end of token
+        token = re.sub(r"^[^a-zA-Z0-9]+", "", t[0])
+        token = re.sub(r"[^a-zA-Z0-9]+$", "", token).lower()
+        #remove spaces before words
+        token = re.sub(r"^\s+", "", token)
+        if token in excluded_words:
+            continue
         #if t[0] not in stopwords and is not a fully built up of punctuation marks
-        if t[0] not in set(stopwords.words('english')) and re.match(r'^[^\w\s]+$', t[0]) is None:
-            yield (t[0].lower(), t[1])
+        if token not in set(stopwords.words('english')) and re.match(r'^[^\w\s]+$', token) is None:
+            yield (token.lower(), t[1])
 
 
 
@@ -88,13 +96,28 @@ def remove_ngram_tokens(tokens, ngram_tokens):
     Parameters: tokens - the list of tokens to be cleaned
     Returns: cleaned tokens
     """
-    for ngram in ngram_tokens:
-        ngram_to_check = ngram[0].split(" ")
-        for i in range(len(ngram_to_check)-2):
-            for j in range(len(tokens)-2):
-                if tokens[j][0] == ngram_to_check[i][0] and tokens[j][1] == ngram_to_check[i][1]:
-                    tokens.remove(tokens[j])
-                    break
+    for ngram_to_check in ngram_tokens:
+        ngram_to_check = ngram_to_check[0].split(" ")
+        ngram_start_index = -1
+        next_index = 0
+        matches = 0
+        for i in range(len(ngram_to_check)):
+            for j in range(next_index, len(tokens) - len(ngram_to_check)):
+                if tokens[j][0] == ngram_to_check[i]: # if one token from ngram is found in tokens
+                    if ngram_start_index == -1:
+                        ngram_start_index = j
+                    matches += 1
+                    next_index = j + 1
+                    break # move onto next word in ngram
+                else:
+                    matches = 0
+                    ngram_start_index = -1
+            if matches == len(ngram_to_check): # if all tokens from ngram are found in tokens
+                # delete each token found in ngram from tokens
+                for i in range(ngram_start_index, ngram_start_index + len(ngram_to_check)):
+                    tokens[i] = None
+                break
+        tokens = [token for token in tokens if token is not None]
     return tokens
 
 def load_data(data_path):
@@ -206,8 +229,6 @@ def process_statements(data_path):
     words_in_corpus = {}
     statements_list = []
     for statement in tokenized_statements['statement']:
-        print(statement)
-        input("Press Enter to continue")
         statements_list.append([0 for _ in range(len(words_in_corpus))])
         for word in statement:
             if word not in words_in_corpus:
@@ -284,7 +305,7 @@ def process_statements(data_path):
         statement_tf_idf[term_no] = word_tf * term_idfs[term_no]
     
     tf_idf_statements.append(statement_tf_idf)
-    tf_idf_statements = csr_matrix(tf_idf_statements) # (statement, word)   tf-idf value
+    tf_idf_statements = csr_matrix(tf_idf_statements) # (statement_no, word_no)   tf-idf value
 
     # Save the tf-idf vectors to a pkl file
     os.system('cls')
@@ -304,10 +325,10 @@ data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
 
 #load_data(data_path)
 
-common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
-with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
-    pkl.dump(common_ngrams, file)
+#common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
+#with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
+    #pkl.dump(common_ngrams, file)
 
-concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
+#concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
 
 process_statements('../data/pickle/statements_ngrams.pkl')
