@@ -50,10 +50,16 @@ def clean_text(text):
         # remove punctation marks from start and end of token
         token = re.sub(r"^[^a-zA-Z0-9]+", "", t[0])
         token = re.sub(r"[^a-zA-Z0-9]+$", "", token).lower()
+        
         #remove spaces before words
         token = re.sub(r"^\s+", "", token)
         if token in excluded_words:
             continue
+
+        # lemmatize token
+        lemmatizer = WordNetLemmatizer()
+        token = lemmatizer.lemmatize(token)
+
         #if t[0] not in stopwords and is not a fully built up of punctuation marks
         if token not in set(stopwords.words('english')) and re.match(r'^[^\w\s]+$', token) is None:
             yield (token.lower(), t[1])
@@ -239,7 +245,6 @@ def process_statements(data_path):
             else:
                 statements_list[len(statements_list)-1][words_in_corpus[word]] += 1
 
-
     with open(os.path.join(current_dir, '../data/pickle/words_in_corpus.pkl'), 'wb') as file:
         pkl.dump(words_in_corpus, file)
     
@@ -325,10 +330,10 @@ data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
 
 #load_data(data_path)
 
-#common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
-#with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
-    #pkl.dump(common_ngrams, file)
+common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
+with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
+    pkl.dump(common_ngrams, file)
 
-#concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
+concatenate_statements_ngrams('../data/pickle/tokenized_statements.pkl')
 
 process_statements('../data/pickle/statements_ngrams.pkl')

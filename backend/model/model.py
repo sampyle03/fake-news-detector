@@ -50,10 +50,16 @@ def clean_text(text):
         # remove punctation marks from start and end of token
         token = re.sub(r"^[^a-zA-Z0-9]+", "", t[0])
         token = re.sub(r"[^a-zA-Z0-9]+$", "", token).lower()
+
         #remove spaces before words
         token = re.sub(r"^\s+", "", token)
         if token in excluded_words:
             continue
+
+        # lemmatize token
+        lemmatizer = WordNetLemmatizer()
+        token = lemmatizer.lemmatize(token)
+
         #if t[0] not in stopwords and is not a fully built up of punctuation marks
         if token not in set(stopwords.words('english')) and re.match(r'^[^\w\s]+$', token) is None:
             yield (token.lower(), t[1])
@@ -146,8 +152,8 @@ def knnc_train_model():
     truth_ratings = pd.read_pickle(os.path.join(current_dir, "../data/pickle/semi_processed_data.pkl"))['label'] # pandas series
 
     # hyperparameter tuning
-    # test k=5 to 320 in intervals of 8
-    param_grid = {'n_neighbors': list(range(1, 521, 20))}
+    # test k=1 to 420 in intervals of 20
+    param_grid = {'n_neighbors': list(range(1, 421, 20))}
     knn = KNeighborsClassifier(metric='cosine')
     grid_search = GridSearchCV(knn, param_grid, cv=5, scoring='accuracy')
     grid_search.fit(tf_idf_statements, truth_ratings)
@@ -230,8 +236,8 @@ def classify_statement(data_path, statement):
 
 # Main
 current_dir = os.path.dirname(__file__)
-#knnc_train_model() # run once then comment out
-#knnr_train_model() # run once then comment out
+knnc_train_model() # run once then comment out
+knnr_train_model() # run once then comment out
 while True:
     statement = input("Enter a statement to classify: ")
     classify_statement("../data/pickle/tf_idf_statements.pkl", statement)
