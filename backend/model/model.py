@@ -149,7 +149,7 @@ def knnc_train_model():
     """
     # load training data
     tf_idf_statements = pd.read_pickle(os.path.join(current_dir, "../data/pickle/tf_idf_statements.pkl")) # csr_matrix - (statement_no, word_no)   tf-idf value
-    truth_ratings = pd.read_pickle(os.path.join(current_dir, "../data/pickle/semi_processed_data.pkl"))['label'] # pandas series
+    truth_ratings = pd.read_pickle(os.path.join(current_dir, "../data/pickle/semi_processed_train.pkl"))['label'] # pandas series
 
     # hyperparameter tuning
     # test k=1 to 420 in intervals of 20

@@ -16,8 +16,19 @@ from math import log10 as math_log
 from nltk import pos_tag as nltk_pos_tag
 from nltk import ne_chunk as nltk_ne_chunk
 from nltk.tree import Tree as nltk_tree
+
+# import numpy as np
+# import nltk
 # nltk.download('maxent_ne_chunker')
 # nltk.download('words')
+# nltk.download('punkt_tab')
+# nltk.download('averaged_perceptron_tagger_eng')
+# nltk.download('maxent_ne_chunker_tab')
+# nltk.download('wordnet')
+# nltk.download('stopwords')
+
+LEMMATIZER = WordNetLemmatizer()
+STOPWORDS = set(stopwords.words('english'))
 
 def clean_text(text):
     """
@@ -26,9 +37,8 @@ def clean_text(text):
     Returns: cleaned tokens
     """
 
-    tokens = word_tokenize(text) # Tokenizes text
-    ner_chunks = nltk_ne_chunk(nltk_pos_tag(tokens)) # Gets the named entities of the tokens
-    tokens = nltk_pos_tag(tokens) # Gets the parts of speech tags of the tokens
+    tokens = nltk_pos_tag(word_tokenize(text)) # Tokenizes text and gets the parts of speech tags of the tokens
+    ner_chunks = nltk_ne_chunk(tokens) # Gets the named entities of the tokens
 
     tags = []
     for chunk in ner_chunks:
@@ -57,11 +67,10 @@ def clean_text(text):
             continue
 
         # lemmatize token
-        lemmatizer = WordNetLemmatizer()
-        token = lemmatizer.lemmatize(token)
+        token = LEMMATIZER.lemmatize(token)
 
         #if t[0] not in stopwords and is not a fully built up of punctuation marks
-        if token not in set(stopwords.words('english')) and re.match(r'^[^\w\s]+$', token) is None:
+        if token not in STOPWORDS and re.match(r'^[^\w\s]+$', token) is None:
             yield (token.lower(), t[1])
 
 
@@ -126,7 +135,7 @@ def remove_ngram_tokens(tokens, ngram_tokens):
         tokens = [token for token in tokens if token is not None]
     return tokens
 
-def load_data(data_path):
+def load_data(data_path, file_name = 'semi_processed_data.pkl'):
     """
     Function: Loads all valid data entried and saves it to a pkl file found it the data folder; only to be used once
     Parameters: None
@@ -134,7 +143,7 @@ def load_data(data_path):
     """
 
     os.system('cls')
-    print("Loading data...")
+    print(f"Loading {file_name} data...")
     # Load data from tsv file
     #chosen_columns = ["id", "label", "statement", "subjects", "speaker", "speaker_job_title", "state_info", "party_affiliation","barely_true_counts", "false_counts", "half_true_counts", "mostly_true_counts", "pants_on_fire_counts", "context"] - this considers counts of speaker's ratings
     chosen_columns = ["id", "label", "statement", "subjects", "speaker", "speaker_job_title", "state_info", "party_affiliation", "context"]
@@ -163,7 +172,7 @@ def load_data(data_path):
                     loaded_data.loc[loaded_data['label'] == 'pants-fire', 'ordinal_label'] = 0
 
 
-    loaded_data.to_pickle(os.path.join(current_dir,'../data/pickle/semi_processed_data.pkl'))
+    loaded_data.to_pickle(os.path.join(current_dir,('../data/pickle/' + str(file_name))))
     input("- Data Loaded\n- Press Enter")
 
 
@@ -181,7 +190,7 @@ def tokenize_data(data_path):
 
     os.system('cls')
     print("Tokenizing statements...")
-    print("This will take a minute or two...")
+    print("This will take a few hours to run...")
     unprocessed_data['statement'] = unprocessed_data['statement'].apply(lambda x: list(clean_text(x)))
 
     # Detect ngrams
@@ -325,12 +334,18 @@ def process_statements(data_path):
 
 # Main
 current_dir = os.path.dirname(__file__)
-data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
+train_data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
+valid_data_path = os.path.join(current_dir, "../data/valid.tsv") #LIAR dataset
+test_data_path = os.path.join(current_dir, "../data/test.tsv") #LIAR dataset
 
+# load training data
+load_data(train_data_path, 'semi_processed_train.pkl') # load training data
+# load validation data
+load_data(valid_data_path, 'semi_processed_valid.pkl') # load validation data
+# load test data
+load_data(test_data_path, 'semi_processed_test.pkl') # load test data
 
-#load_data(data_path)
-
-common_ngrams = tokenize_data('../data/pickle/semi_processed_data.pkl') # tokenize statements and find common ngrams
+common_ngrams = tokenize_data('../data/pickle/semi_processed_train.pkl') # tokenize statements and find common ngrams
 with open(os.path.join(current_dir, '../data/pickle/common_ngrams.pkl'), 'wb') as file:
     pkl.dump(common_ngrams, file)
 

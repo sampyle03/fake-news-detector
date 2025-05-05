@@ -1,4 +1,3 @@
-# bert_classifier.py
 BATCH_SIZE = 16
 SEED = 42
 
@@ -8,9 +7,7 @@ def clean_text(text):
     Parameters: text (str)
     Returns: cleaned text (str)
     """
-    if text.startswith("Says that"):
-        text = text[9:] # remove the first 9 characters
-    elif text.startswith("Says"):
+    if text.startswith("Says"):
         text = text[5:] # remove the first 5 characters
     return text
 
@@ -56,12 +53,10 @@ def train_bert_classifier():
 
     train_df = pd.read_pickle(os.path.join(current_dir, "../data/pickle/semi_processed_train.pkl"))
     val_df   = pd.read_pickle(os.path.join(current_dir, "../data/pickle/semi_processed_valid.pkl"))
-
-    map_labels = {0: 0, 1: 0, 2: 0, 3: 0, 4: 1, 5: 1} # map the labels to 0 (false) and 1 (true); pants-fire -> false, false -> false, barely-true -> false, half-true -> false, mostly-true -> true, true -> true
     train_texts  = train_df["statement"]
-    train_labels = train_df["ordinal_label"].map(map_labels)
+    train_labels = train_df["ordinal_label"]
     val_texts    = val_df["statement"]
-    val_labels   = val_df["ordinal_label"].map(map_labels)
+    val_labels   = val_df["ordinal_label"]
 
 
     # Load the data
@@ -91,24 +86,24 @@ def train_bert_classifier():
     print("Loading model...")
     config = BertConfig.from_pretrained( # https://huggingface.co/docs/transformers/en/main_classes/configuration
         "bert-base-uncased",
-        hidden_dropout_prob=0.4,
-        attention_probs_dropout_prob=0.4,
-        num_labels=2, # number of labels: 2
+        hidden_dropout_prob=0.2,
+        attention_probs_dropout_prob=0.2,
+        num_labels=6, # number of labels -> pants-fire, false, barely-true, half-true, mostly-true, true
     )
 
-    model = TFAutoModelForSequenceClassification.from_pretrained("bert-base-uncased", config=config) # https://stackoverflow.com/questions/62327803/having-6-labels-instead-of-2-in-hugging-face-bertforsequenceclassification if using 6 labels
+    model = TFAutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=6) # https://stackoverflow.com/questions/62327803/having-6-labels-instead-of-2-in-hugging-face-bertforsequenceclassification
     for layer in model.bert.encoder.layer:
         layer.trainable = True # unfreeze the layers of the model
 
 
-    num_of_epochs = 2 # Epochs used for training the model
+    num_of_epochs = 12 # Epochs used for training the model
     # Optimizer for the model
-    total_train_steps = (len(train_labels) // BATCH_SIZE) * 3 # https://huggingface.co/docs/transformers/en/tasks/question_answering
+    total_train_steps = (len(train_labels) // BATCH_SIZE) * num_of_epochs # https://huggingface.co/docs/transformers/en/tasks/question_answering
     optimizer, schedule = create_optimizer(
-        init_lr=3e-5,  
+        init_lr=2e-5,  
         num_warmup_steps=int(0.1 * total_train_steps),
         num_train_steps=total_train_steps,
-        weight_decay_rate=0.02
+        weight_decay_rate=0.01
     )
 
     loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True) # loss function for multi-class classification
@@ -119,7 +114,7 @@ def train_bert_classifier():
     class_weights = enumerate(weights)
     class_weights = dict(class_weights)
 
-    callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=1, restore_best_weights=True)
+    callback = tf.keras.callbacks.EarlyStopping(monitor="val_accuracy", patience=3, restore_best_weights=True)
     os.system('cls')
     print("Training model...")
     model.fit(train_dataset, validation_data=val_dataset, epochs=num_of_epochs, callbacks=[callback], class_weight=class_weights)
@@ -127,6 +122,7 @@ def train_bert_classifier():
     input("Press Enter to continue...")
 
     # Save model and tokenizer
+    os.system('cls')
     input("Press Enter to save the model (otherise, press Ctrl+C to exit):")
     print("Saving model...")
     model.save_pretrained(os.path.join(current_dir, "../models/bert_classifier"))
@@ -142,86 +138,7 @@ def train_bert_classifier():
     print(train_labels.value_counts(normalize=True))
     print("\n\nClass distribution of the validation dataset:")
     print(val_labels.value_counts(normalize=True))
-
-def test_saved_model():
-    """
-    Function: loads saved BERT model and tokenizer and tests on semi_processed_test dataset.
-    Parameters: None
-    Returns: None
-    """
-    import os
-    import pandas as pd
-    import tensorflow as tf
-    from transformers import create_optimizer, AutoTokenizer, TFAutoModelForSequenceClassification
-    import numpy as np
-    from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
-
-    os.system('cls')
-    print("Loading data...")
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-
-    map_labels = {0: 0, 1: 0, 2: 0, 3: 0, 4: 1, 5: 1} # map the labels to 0 (false) and 1 (true); pants-fire -> false, false -> false, barely-true -> false, half-true -> false, mostly-true -> true, true -> true
-
-    test_df = pd.read_pickle(os.path.join(current_dir, "../data/pickle/semi_processed_test.pkl"))
-    test_texts  = test_df["statement"]
-    test_labels = test_df["ordinal_label"].map(map_labels)
-
-    # Load the tokenizer and model
-    os.system('cls')
-    print("Loading model...")
-    tokenizer = AutoTokenizer.from_pretrained(os.path.join(current_dir, "../models/bert_classifier"))
-    model = TFAutoModelForSequenceClassification.from_pretrained(os.path.join(current_dir, "../models/bert_classifier"))
-
-    # Tokenize the test data
-    test_tokens = tokenize(test_texts, tokenizer)
-
-    # Create the test dataset
-    test_dataset = tf.data.Dataset.from_tensor_slices((
-        dict(test_tokens),
-        test_labels.values
-    )).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-
-
-    total_train_steps = (len(test_labels) // BATCH_SIZE)
-    optimizer, schedule = create_optimizer(
-        init_lr=2e-5,  
-        num_warmup_steps=int(0.1 * total_train_steps),
-        num_train_steps=total_train_steps,
-        weight_decay_rate=0.01
-    )
-
-    loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True) # loss function for multi-class classification
-    metrics = [tf.keras.metrics.SparseCategoricalAccuracy("accuracy")]
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-
-    # Evaluate the model on the test dataset
-    os.system('cls')
-    print("Evaluating model...")
-    results = model.evaluate(test_dataset)
     
-    # Calculate results
-    logits = model.predict(test_dataset).logits
-    probs = tf.nn.softmax(logits, axis=1).numpy()
-    y_pred = np.argmax(probs, axis=1)
-    y_true = np.array(list(test_dataset.unbatch().map(lambda x, y: y)))
-
-    precision = precision_score(y_true, y_pred, average='binary')
-    recall = recall_score(y_true, y_pred, average='binary')
-    f1 = f1_score(y_true, y_pred, average='binary')
-    auc = roc_auc_score(y_true, probs[:, 1])
-
-    # Output metrics
-    print("Model Results:")
-    print(f"Loss: {results[0]}")
-    print(f"Accuracy: {results[1]}")
-    print(f"Precision: {precision}")
-    print(f"Recall: {recall}")
-    print(f"F1 Score: {f1}")
-    print(f"AUC: {auc}")
-    print("Model evaluated!")
-
-
 
 train_bert_classifier()
-input("Press Enter to test the saved model (otherise, press Ctrl+C to exit):")
-test_saved_model()
+#continue_training_from_epoch(8, 12)
