@@ -1,2 +1,3 @@
 node_modules
 bert_classifier_weights.data-00000-of-00001
+tf_model.h5
