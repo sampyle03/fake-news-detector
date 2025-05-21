@@ -117,7 +117,7 @@ def tokenize_ngrams(common_ngrams, cleaned_tokens):
         if bigram in common_ngrams: # checks if two words from tokens being checked are one of commonBigrams
             yield ((bigram[0][0] + " " + bigram[1][0]), (bigram[0][1], bigram[1][1]))
 
-def custom_toknizer(text):
+def custom_tokenizer(text):
     """
     Function: Tokenizes text using custom tokenizer features
     Parameters: text - the text to be tokenized
@@ -375,7 +375,7 @@ def build_tfidf():
     all_texts = pd.concat([train['statement'], valid['statement'], test['statement']], ignore_index=True)
 
     # create tf-idf vectorizer
-    vectorizer = TfidfVectorizer(tokenizer = custom_toknizer, lowercase = False, preprocessor  = None, token_pattern = None)
+    vectorizer = TfidfVectorizer(tokenizer = custom_tokenizer, lowercase = False, preprocessor  = None, token_pattern = None)
     vectorizer.fit(all_texts.tolist())
 
     #convert the vectorizer to a pickle file for later use in other scripts
@@ -396,7 +396,7 @@ train_data_path = os.path.join(current_dir, "../data/train.tsv") #LIAR dataset
 valid_data_path = os.path.join(current_dir, "../data/valid.tsv") #LIAR dataset
 test_data_path = os.path.join(current_dir, "../data/test.tsv") #LIAR dataset
 
-"""------------------------------------- TRAINING DATA -------------------------------------"""
+"""------------------------------------- TRAINING DATA (Uncomment below to run) -------------------------------------"""
 
 # # load training data
 # load_data(train_data_path, 'semi_processed_train.pkl') # load training data

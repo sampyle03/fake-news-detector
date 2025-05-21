@@ -288,8 +288,8 @@ def evaluate(model, tfidf_path, ordinal_path, is_regressor=False):
 
 
 
-# Main - uncomment to run
 current_dir = os.path.dirname(__file__)
+# Main - uncomment to run
 # knnc_train_model() # run once then comment out
 # knnr_train_model() # run once then comment out
 

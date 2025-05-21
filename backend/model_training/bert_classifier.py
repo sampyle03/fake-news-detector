@@ -217,7 +217,7 @@ def test_saved_model():
     print("Model evaluated!")
 
 
-
+# Uncomment below to run training and testing of model
 # train_bert_classifier()
 # input("Press Enter to test the saved model (otherise, press Ctrl+C to exit):")
 # test_saved_model()

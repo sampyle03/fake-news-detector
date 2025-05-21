@@ -4,7 +4,7 @@ import pandas as pd
 import tensorflow as tf
 from transformers import create_optimizer, AutoTokenizer, TFAutoModelForSequenceClassification, pipeline
 import numpy as np
-from model_training.data_processor import custom_toknizer
+from model_training.data_processor import custom_tokenizer
 from model_training.model import RoundedKNeighborsRegressor
 from sklearn.metrics import f1_score
 import logging

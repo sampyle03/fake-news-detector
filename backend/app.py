@@ -5,7 +5,7 @@ if hasattr(sys.stdout, "reconfigure"):
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-from model_training.data_processor import custom_toknizer
+from model_training.data_processor import custom_tokenizer
 from model_training.model import RoundedKNeighborsRegressor
 from tweet_scraper import scrape_tweet
 from ensemble import predict
