@@ -1,7 +1,9 @@
+# X Fake News Detection System
+
 Front-End: React.js, html, css
 Back-End: JavaScript, Python (v3.11)
 
-# To setup the machine learning model
+## To setup the machine learning model
 In order to setup the machine learning model for use:
 1. Ensure you are using Python 3.11 as your Python interpreter. Install it here: https://www.python.org/downloads/release/python-3117/
 2. On your Windows machine, click the bottom left Windows icon and type in "cmd" to open a terminal.
@@ -26,7 +28,7 @@ In order to setup the machine learning model for use:
 16. Navigate to the tweet_scraper.py file and run it once. This may take up to a minute to run.
 17. Navigate to the ensemble.py file and run it once. This may take up to a minute to run.
 
-# To run the fake news detector through the webpage
+## To run the fake news detector through the webpage
 1. Open an integrated terminal for the frontend folder. This can be done through a command such as:
     > cd C:\Users\user1\Documents\FakeNewsDetector\Code\frontend
 2. Run the following command:
@@ -49,7 +51,7 @@ In order to setup the machine learning model for use:
 11. In your browser, type in
     > localhost:3000
 
-# To use the webpage
+## To use the webpage
 1. Paste the URL of an X/Twitter post into the search bar.
 2. Click "Submit" and wait for the results to appear - this may take up to a minute.
 3. Repeat steps 1 and 2.
