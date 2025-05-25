@@ -43,16 +43,19 @@ def clean_text(text):
 
     tags = []
     for chunk in ner_chunks:
-        if isinstance(chunk, nltk_tree): # Check if chunk is a named entity
-            entity_type = chunk.label()
-            entity_words = [word for (word, pos) in chunk]
-            entity_phrase = ' '.join(entity_words)  # Merge into "Annies List"
+        if isinstance(chunk, nltk_tree): # if chunk is a named entity
+            entity_type = chunk.label() # get type of named entity
+            entity_words = [word for (word, pos) in chunk] # get words in the named entity
+            entity_phrase = ' '.join(entity_words)  # join words of entiity into single phrase
             tags.append((entity_phrase, entity_type)) # Set word's tag to its entity type
-        else: 
+        else: # if chunk is a regular token, then set its tag to its POS tag
             word, pos = chunk
-            tags.append((word, pos)) # Set word's tag to its POS tag
+            tags.append((word, pos))
 
-    if tokens and tokens[0][0].lower() == "says":
+    if tokens and tokens[0][0].lower() == "says" and tokens[1][0].lower() == "that": # if first two tokens are "says that", remove them
+        tokens = tokens[2:]
+        tags = tags[2:]
+    elif tokens and tokens[0][0].lower() == "says": # if first token is "says", remove it
         tokens = tokens[1:]
         tags = tags[1:]
     
