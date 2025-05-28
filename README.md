@@ -7,30 +7,33 @@ Back-End: JavaScript, Python (v3.11)
 In order to setup the machine learning model for use:
 1. Ensure you are using Python 3.11 as your Python interpreter. Install it here: https://www.python.org/downloads/release/python-3117/
 2. On your Windows machine, click the bottom left Windows icon and type in "cmd" to open a terminal.
-3. On the terminal, run the line of code:
+3. (Optional to save memory) - type in the following command:
+    > cd C:\Users\user\path\to\folder\fake-news-detector-main
+4. On the terminal, run the line of code:
     > py -3.11 -m pip install flask flask-cors pandas tensorflow transformers numpy scikit-learn jsonify playwright tf_keras nltk matplotlib shap torch
 <br />
 
-4. Navigate to the data_processor.py file found at /backend/model_training.
-5. Uncomment all lines of code below TRAINING DATA.
-6. Run the data_processor.py file (WARNING: this will take a few hours to run).
-7. Re-comment all lines of code that you had just commented out.
+5. Navigate to the data_processor.py file found at /backend/model_training.
+6. Uncomment all lines of code below TRAINING DATA - you can uncomment lines by highlighting the required code and clicking "Ctrl + /".
+7. Run the data_processor.py file and follow the prompts (IMPORTANT: all process_statements() functions should remain commented) (WARNING: this will take a few hours to run).
+8. Re-comment all lines of code that you had just commented out.
 <br />
 
-8. Navigate to the bert_classifier.py file found at /backend/model_training.
-9. Uncomment the top line of the bottom 3 lines of code. For testing, uncomment all 3 and follow prompts.
-10. Run the bert_classifier.py file (WARNING: this may take a few hours to run).
-11. Re-comment all lines of code that you had just commented out.
+9. Navigate to the bert_classifier.py file found at /backend/model_training.
+10. Uncomment the top line of the bottom three lines of code and follow the prompts. You can uncomment lines by highlighting the required code and pressing "Ctrl + /".
+11. (Optional) For testing, uncomment all 3 and follow the prompts.
+12. Run the bert_classifier.py file (WARNING: this may take a few hours to run).
+13. Re-comment all lines of code that you had just commented out.
 <br />
 
-12. Navigate to the model.py file found at /backend/model_training.
-13. Uncomment all lines of code below "# Main - uncomment to run"
-14. Run the model.py file. This could take up to 10 minutes to run.
-15. Re-comment all lines of code that you had just commented out.
+14. Navigate to the model.py file found at /backend/model_training.
+15. Uncomment all lines of code below "# Main - uncomment to run"
+16. Run the model.py file. This could take up to 10 minutes to run.
+17. Re-comment all lines of code that you had just commented out.
 <br />
 
-16. Navigate to the tweet_scraper.py file and run it once. This may take up to a minute to run.
-17. Navigate to the ensemble.py file and run it once. This may take up to a minute to run.
+18. Navigate to the tweet_scraper.py file and run it once. This may take up to a minute to run.
+19. Navigate to the ensemble.py file and run it once. This may take up to a minute to run.
 
 ## To run the fake news detector through the webpage
 1. Open an integrated terminal for the frontend folder. This can be done through a command such as:
