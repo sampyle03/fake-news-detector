@@ -16,20 +16,20 @@ In order to setup the machine learning model for use:
 5. Navigate to the data_processor.py file found at /backend/model_training.
 6. Uncomment all lines of code below TRAINING DATA - you can uncomment lines by highlighting the required code and clicking "Ctrl + /".
 7. Run the data_processor.py file and follow the prompts (IMPORTANT: all process_statements() functions should remain commented) (WARNING: this will take a few hours to run).
-8. Re-comment all lines of code that you had just commented out.
+8. Re-comment all lines of code that you had just commented out - you can recomment lines by highlighting the required code and clicking "Ctrl + /".
 <br />
 
 9. Navigate to the bert_classifier.py file found at /backend/model_training.
 10. Uncomment the top line of the bottom three lines of code and follow the prompts. You can uncomment lines by highlighting the required code and pressing "Ctrl + /".
 11. (Optional) For testing, uncomment all 3 and follow the prompts.
 12. Run the bert_classifier.py file (WARNING: this may take a few hours to run).
-13. Re-comment all lines of code that you had just commented out.
+13. Re-comment all lines of code that you had just commented out - you can recomment lines by highlighting the required code and clicking "Ctrl + /".
 <br />
 
 14. Navigate to the model.py file found at /backend/model_training.
-15. Uncomment all lines of code below "# Main - uncomment to run"
+15. Uncomment all lines of code below "# Main - uncomment to run" - you can uncomment lines by highlighting the required code and clicking "Ctrl + /".
 16. Run the model.py file. This could take up to 10 minutes to run.
-17. Re-comment all lines of code that you had just commented out.
+17. Re-comment all lines of code that you had just commented out - you can recomment lines by highlighting the required code and clicking "Ctrl + /".
 <br />
 
 18. Navigate to the tweet_scraper.py file and run it once. This may take up to a minute to run.
